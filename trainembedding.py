@@ -1,147 +1,181 @@
-#import cv2
+import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from random import shuffle
 import pandas as pd
-import untitled0 as ut
-#train_dir='/home/amanthakur/Downloads/train'
-#test_dir='/home/amanthakur/Downloads/test1'
-img_size=7
-lr=0.001
-
-#pixel1,kern=main()
-kern=7
-dataset=pd.read_csv("training.file.csv").values
-
-model_name="dogsvscats-()-()-model".format(lr,"6conv-basic")
-
-def label_image(img):
-    
-    word_label=img[-1]
-    #word_label=word_label[0][:3]
-    print(word_label)
-    if word_label=='ROI': return [1,0]
-    elif word_label=='NROI': return [0,1]
-
-
-def create_train_data(kern):
-    training_data=[]
-    for img in dataset[:-13]:
-        label=label_image(img)
-        print(label)
-        a=[]
-        for i in range(0,len(img)-1,kern):
-            #b=[]
-            #b.append(img[i:i+7])
-            a.append(img[i:i+7])
-        #path=os.path.join(train_dir,img)
-        a=np.array(a)
-        print(a)
-        #print(path)
-        #im=cv2.imread(path,cv2.IMREAD_GRAYSCALE)
-        #img=cv2.resize(im,(img_size,img_size))
-        #training_data.append([np.array(img),np.array(label)])
-        training_data.append([a,np.array(label)])
-    shuffle(training_data)
-    np.save("training_data.npy",training_data)
-    return training_data
-
-
-def process_test_data(kern):
-    testing_data=[]
-    for img in dataset[-12:]:
-        a=[]
-        for i in range(0,len(img)-1,kern):
-            #b=[]
-            #b.append()
-            a.append(img[i:i+7])
-        #path=os.path.join(train_dir,img)
-        a=np.array(a)
-        #img_num=
-        print(a)
-        #path=os.path.join(test_dir,img)
-        #img_num=img.split(',')[0]
-        #img=cv2.resize(cv2.imread(path,cv2.IMREAD_GRAYSCALE),(img_size,img_size))
-        
-        testing_data.append(a)
-    np.save("test_data.npy",testing_data)
-    return testing_data
-
-train_data=create_train_data(kern)
-#if you already have train data
-#train_data=np.load("training_data.npy")
+import create_dataset as dt
+from sklearn.metrics import confusion_matrix,accuracy_score
 
 import tflearn
 from tflearn.layers.conv import conv_2d, max_pool_2d
 from tflearn.layers.core import input_data, dropout, fully_connected
 from tflearn.layers.estimator import regression
 import tensorflow as tf
-tf.reset_default_graph()
+#train_dir='/home/amanthakur/Downloads/train'
+#test_dir='/home/amanthakur/Downloads/test1'
+lr=0.001
+img_size=100
 
-convnet = input_data(shape=[None, img_size,img_size, 1], name='input')
-#print(convnet)
-convnet = conv_2d(convnet, 16, 2, activation='relu')
-#print(convnet)
-convnet = max_pool_2d(convnet, 2)
-#print(convnet)
+model_name="Data_Hinding-()-()-model".format(lr,"6conv-basic")
 
-convnet = conv_2d(convnet, 32, 2, activation='relu')
-convnet = max_pool_2d(convnet, 2)
+def label_image(img):
+    
+    word_label=img[-1]
+    print(word_label)
+    if word_label=='ROI': return [1,0]
+    elif word_label=='NROI': return [0,1]
 
-convnet = conv_2d(convnet, 16, 2, activation='relu')
-convnet = max_pool_2d(convnet, 2)
 
-convnet = conv_2d(convnet, 32, 2, activation='relu')
-convnet = max_pool_2d(convnet, 2)
+def create_train_data(pixel1,q3,kern,thresold):
+    
+    dt.make_dataset(pixel1,q3,kern,thresold,"training_file.csv")
+    train_dataset=pd.read_csv("training_file.csv").values
+    training_data=[]
+    for img in train_dataset:
+        label=label_image(img)
+        print(label)
+        a=[]
+        for i in range(0,len(img)-1,kern):
+            a.append(img[i:i+kern])
+        a=np.array(a)
+        print(a)
+        training_data.append([a,np.array(label)])
+    if training_data:
+        print("\ntraining data is created.")
+    shuffle(training_data)
+    np.save("training_data.npy",training_data)
+    return training_data
 
-convnet = conv_2d(convnet, 16, 2, activation='relu')
-convnet = max_pool_2d(convnet, 2)
 
-convnet = conv_2d(convnet, 32, 2, activation='relu')
-convnet = max_pool_2d(convnet, 2)
-#print(convnet)
-convnet = fully_connected(convnet, 512, activation='relu')
-convnet = dropout(convnet, 0.8)
+def process_test_data(kern,thresold,strd):
+    img=cv2.resize(cv2.imread("/home/amanthakur/Downloads/train/cat.4.jpg",0),(img_size,img_size))
+    plt.imshow(img,cmap="gray")
+    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
+    plt.show()
+    pixel=np.array(img)
+    print("\nprocessing testing data....")
+    blocks,index=dt.make_blocks(pixel,strd,kern,img_size)
+    q3,pixel1,e2=dt.diff_block_div_one(blocks)
+    dt.make_dataset(pixel1,q3,kern,thresold,"testing_file.csv")
+    test_dataset=pd.read_csv("testing_file.csv").values
+    testing_data=[]
+    y_test=[]
+    for img in test_dataset:
+        a=[]
+        for i in range(0,len(img)-1,kern):
+            a.append(img[i:i+kern])
+        a=np.array(a)
+        print(a)
+        
+        testing_data.append(a)
+        y_test.append(img[-1])
+    if testing_data:
+        print("\ntesting data is processed..")
+    np.save("test_data.npy",(testing_data,y_test))
+    return testing_data,y_test
 
-convnet = fully_connected(convnet, 2, activation='softmax')
-convnet = regression(convnet, optimizer='adam', learning_rate=lr, loss='categorical_crossentropy', name='targets')
+def train_model(train_data,kern):
+    
+    train=train_data[:-500]
+    test=train_data[-500:]
+    x=np.array([i[0] for i in train]).reshape(-1,kern,kern,1)
+    y=[i[1] for i in train]
+    
+    test_x=np.array([i[0] for i in test]).reshape(-1,kern,kern,1)
+    test_y=[i[1] for i in test]
+    
+    tf.reset_default_graph()
 
-model = tflearn.DNN(convnet,tensorboard_dir='log')
-#model.fit({'input': X}, {'targets': Y}, n_epoch=10, validation_set=({'input': test_x}, {'targets': test_y}), 
-   # snapshot_step=500, show_metric=True, run_id='mnist')
-if os.path.exists('{}.meta'.format(model_name)):
-    model.load(model_name)
-    print("model loaded!")
-
-train=train_data[:-500]
-test=train_data[-500:-12]
-x=np.array([i[0] for i in train]).reshape(-1,img_size,img_size,1)
-y=[i[1] for i in train]
-
-test_x=np.array([i[0] for i in test]).reshape(-1,img_size,img_size,1)
-test_y=[i[1] for i in test]
-
-model.fit({'input': x}, {'targets': y}, n_epoch=5, validation_set=({'input': test_x}, {'targets': test_y}), 
+    convnet = input_data(shape=[None, kern,kern, 1], name='input')
+    #print(convnet)
+    convnet = conv_2d(convnet, 16, 2, activation='relu')
+    #print(convnet)
+    convnet = max_pool_2d(convnet, 2)
+    #print(convnet)
+    
+    convnet = conv_2d(convnet, 32, 2, activation='relu')
+    convnet = max_pool_2d(convnet, 2)
+    
+    convnet = conv_2d(convnet, 16, 2, activation='relu')
+    convnet = max_pool_2d(convnet, 2)
+    
+    convnet = conv_2d(convnet, 32, 2, activation='relu')
+    convnet = max_pool_2d(convnet, 2)
+    
+    convnet = conv_2d(convnet, 16, 2, activation='relu')
+    convnet = max_pool_2d(convnet, 2)
+    
+    convnet = conv_2d(convnet, 32, 2, activation='relu')
+    convnet = max_pool_2d(convnet, 2)
+    #print(convnet)
+    convnet = fully_connected(convnet, 512, activation='relu')
+    convnet = dropout(convnet, 0.8)
+    
+    convnet = fully_connected(convnet, 2, activation='softmax')
+    convnet = regression(convnet, optimizer='adam', learning_rate=lr, loss='categorical_crossentropy', name='targets')
+    
+    model = tflearn.DNN(convnet,tensorboard_dir='log')
+    
+    model.fit({'input': x}, {'targets': y}, n_epoch=5, validation_set=({'input': test_x}, {'targets': test_y}), 
     snapshot_step=500, show_metric=True, run_id=model_name)
 
-model.save(model_name)
+    model.save(model_name)
+    
+    if os.path.exists('{}.meta'.format(model_name)):
+        model.load(model_name)
+        print("model loaded!")
+    return model
+
+def test_model(model,test_data,kern):
+    y_pred=[]
+    for data in test_data:
+        img_data=data
+        data=img_data.reshape(kern,kern,1)
+        model_out=model.predict([data])[0]
+        if np.argmax(model_out)==1:
+            str_label='NROI'
+        else:
+            str_label='ROI'
+        y_pred.append(str_label)
+    return y_pred
+        
+def confusion_metrics(y_test,y_pred):
+    return confusion_matrix(y_test,y_pred)
+
+def accuracy(y_test,y_pred):
+    return accuracy_score(y_test, y_pred, normalize=True, sample_weight=None)
+
+
+thresold=10
+pixel1,q3,kern,strd=dt.main(img_size,thresold)
+
+train_data=create_train_data(pixel1,q3,kern,thresold)
+#if you already have train data
+#train_data=np.load("training_data.npy")
+
+test_data,y_test=process_test_data(kern,thresold,strd)
+#test_data,y_test=np.load("test_data.npy")
+print("\ntrainging the model.")
+model=train_model(train_data,kern)
+y_pred=test_model(model,test_data,kern)
+
+matrix=confusion_metrics(y_test,y_pred)
+
+print("confusion matrix: ",matrix)
+
+print("accuracy of the model: ",accuracy(y_test,y_pred))
+
+
+
+
+
+
+
+
+
 #tensorboard --logdir=/logs
 
-
-
-test_data=process_test_data(kern)
-#test_data=np.load("test_data.npy")
-
-for data in test_data:
-    img_data=data
-    orig=img_data
-    data=img_data.reshape(img_size,img_size,1)
-    model_out=model.predict([data])[0]
-    if np.argmax(model_out)==1:
-        str_label='NROI'
-    else:
-        str_label='ROI'
-    print("block is: ",str_label)
     
 """
 with open("submission.file.csv","w") as f:
@@ -152,7 +186,7 @@ with open("submission.file.csv","a") as f:
        img_num=data[1]
        img_data=data
        orig=img_data
-       data=img_data.reshape(img_size,img_size,1)
+       data=img_data.reshape(kern,kern,1)
        model_out=model.predict([data])[0]    
        f.write("{},{}\n".format(img_num,model_out[1]))
        """
