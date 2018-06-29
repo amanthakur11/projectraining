@@ -6,19 +6,19 @@ s1=0
 def make_blocks(pixel,stride,kernel):
     blocks=[]
     index=[]
-    #blocks = np.array([pixel[i:i+kernel, j:j+kernel] for j in range(0,512,kernel) for i in range(0,512,kernel)])
-    for i in range(0,512,stride):
-        for j in range(0,512,stride):
+    #blocks = np.array([pixel[i:i+kernel, j:j+kernel] for j in range(0,100,kernel) for i in range(0,100,kernel)])
+    for i in range(0,100,stride):
+        for j in range(0,100,stride):
             
-            if j+kernel>512 and i+kernel>512:
-                k=i+kernel-512
-                l=j+kernel-512
+            if j+kernel>100 and i+kernel>100:
+                k=i+kernel-100
+                l=j+kernel-100
                 ind1=[]
                 a=[]
-                for p in range(i,512):
+                for p in range(i,100):
                     b=[]
                     ind2=[]
-                    for q in range(j,512):
+                    for q in range(j,100):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -37,7 +37,7 @@ def make_blocks(pixel,stride,kernel):
                 for p in range(k):
                     b=[]
                     ind2=[]
-                    for q in range(j,512):
+                    for q in range(j,100):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -54,14 +54,14 @@ def make_blocks(pixel,stride,kernel):
                 blocks.append(a)
                 index.append(ind1)
                 
-            elif j+kernel>512:
-                k=j+kernel-512
+            elif j+kernel>100:
+                k=j+kernel-100
                 a=[]
                 ind1=[]
                 for p in range(i,i+kernel):
                     b=[]
                     ind2=[]
-                    for q in range(j,512):
+                    for q in range(j,100):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -78,11 +78,11 @@ def make_blocks(pixel,stride,kernel):
                 blocks.append(a)
                 index.append(ind1)
                 
-            elif i+kernel>512:
-                k=i+kernel-512
+            elif i+kernel>100:
+                k=i+kernel-100
                 a=[]
                 ind1=[]
-                for p in range(i,512):
+                for p in range(i,100):
                     b=[]
                     ind2=[]
                     for q in range(j,j+kernel):
@@ -137,7 +137,7 @@ def make_blocks(pixel,stride,kernel):
     print(index.shape)
     #print(blocks[0])
     #print(index[0])
-    return blocks
+    return blocks,index
 
 def diff_block_div_one(blocks):
     pixel1=[]
@@ -255,7 +255,7 @@ def draw_cumulative_histogram(x1,x2,x3):
     plt.xlabel('difference with the reference value')
     plt.ylabel('possibility percentage')
 
-def tsl_calculate(q1,q2):
+def tsl_calculate(q1,q2,thresold):
     count={}
     count1={}
     block1={}
@@ -264,7 +264,7 @@ def tsl_calculate(q1,q2):
         if i[1] not in count:
             count[i[1]]=0
         count[i[1]]+=1
-        if i[1]>=5:
+        if i[1]>=thresold:
             if i[1] not in block1:
                 block1[i[1]]=[]
             block1[i[1]].append(i[0])
@@ -273,15 +273,38 @@ def tsl_calculate(q1,q2):
         if i[1] not in count1:
             count1[i[1]]=0
         count1[i[1]]+=1
-        if i[1]>=5:
+        if i[1]>=thresold:
             if i[1] not in block2:
                 block2[i[1]]=[]
             block2[i[1]].append(i[0])
     return count,count1,block1,block2
 
+def make_dataset(pixel1,q3,kern,thresold):
+    with open("training.file.csv","w") as f:
+        for i in range(kern**2):
+            f.write("x{},".format((i+1)))
+        f.write("label\n")
+        
+    with open("training.file.csv","a") as f:
+        c=0
+        for i in q3:
+            p=pixel1[i[0]-1]
+            if i[1]>=thresold:
+                c=c+1
+                for k in range(len(p[0])):
+                    for n in range(len(p[k])):
+                        f.write("{},".format(p[k][n]))
+                f.write("ROI\n")
+            else:
+                for k in range(len(p[0])):
+                    for n in range(len(p[k])):
+                        f.write("{},".format(p[k][n]))
+                f.write("NROI\n")
+   #return c
+
 def main():
-    img=cv2.resize(cv2.imread("/home/amanthakur/Desktop/lena.jpeg",0),(512,512))
-    #np.reshape(img,[512,512])
+    img=cv2.resize(cv2.imread("/home/amanthakur/Desktop/lena.jpeg",0),(100,100))
+    #np.reshape(img,[100,100])
     plt.imshow(img,cmap="gray")
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
@@ -293,15 +316,16 @@ def main():
     stride=[1,2,3,4,5]
     kernel=[3,4,5,7]
     optimal=[]
+    thresold=10
     for i in stride:
         for l in kernel:
             opt=[]
             print("\nfor stride = ",i," and kernel = ",l)
-            blocks=make_blocks(pixel,i,l)
+            blocks,index=make_blocks(pixel,i,l)
             print("total smooth level before dividing blocks: ")
             q3,pixel1,e2=diff_block_div_one(blocks)
             q4,pixel2=diff_block_div_two(blocks,pixel1,e2)
-            total_sl,total_sl1,block1,block2=tsl_calculate(q3,q4)
+            total_sl,total_sl1,block1,block2=tsl_calculate(q3,q4,thresold)
             print(total_sl)
             #print("\nblocks for different smooth level: ",sorted(block1))
             print("\ntotal smooth level after dividing blocks: ",total_sl1)
@@ -309,7 +333,7 @@ def main():
             tsl=0
             tsl1=0
             for j in total_sl.keys():
-                if j>=5:
+                if j>=10:
                     tsl+=total_sl[j]
                     tsl1=tsl1+j*total_sl[j]
             
@@ -318,24 +342,84 @@ def main():
             opt.append(tsl)
             opt.append(tsl1)
             optimal.append(opt)
-    print(optimal)
-        
-    m=optimal[0][2]
+    
+    print(optimal) 
     strd=optimal[0][0]
     kern=optimal[0][1]
+    m=optimal[0][2]
     m1=optimal[0][3]
+    
     for j in optimal:
         if j[3]>m1:
-            m=j[2]
             strd=j[0]
             kern=j[1]
+            m=j[2]
             m1=j[3]
+            
             
                 
     print("\noptimal tecnique is for stride: ",strd," and kernel: ",kern," with total smooth level>5 : ",m," total smooth level: ",m1)
+    print("\nfor stride = ",strd," and kernel = ",kern)
+    
+    blocks,index=make_blocks(pixel,strd,kern)
+    q3,pixel1,e2=diff_block_div_one(blocks)
+    q4,pixel2=diff_block_div_two(blocks,pixel1,e2)
+    total_sl,total_sl1,block1,block2=tsl_calculate(q3,q4,thresold)
+
+    for j in q3:
+       x=[]
+       y=[]
+       if j[1]>=5:
+            p=pixel1[j[0]-1]
+            inx=index[j[0]-1]
+  
+            #cv2.rectangle(img,(x1,y1),(x2,y2),(255,0,0),3)
+            
+            for k in range(len(p[0])):
+                for n in range(len(p[k])):
+                    if p[k][n]==0:
+                        x.append(inx[k][n][0])
+                        y.append(inx[k][n][1])
+            for j in range(len(x)-1):
+                cv2.line(img,(x[j],y[j]),(x[j+1],y[j+1]),(255,0,0),2)
+    plt.imshow(img,cmap="gray")
+    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
+    plt.show()
+    make_dataset(pixel1,q3,kern,thresold)
+    return pixel1,kern
+    
+    #hresold=[5,7,10,12]
+   #roi=[]
+   #roi.append(0)
+   #j=0
+   #th=0
+    #or i in thresold:
+       #roi.append(make_dataset(pixel1,q3,kern,i))
+       #if(roi[j]-roi[j+1] in [1,2,3,4,5,6]):
+          # th=i
+          # break
+   #print("thresold: ",th," roi: ",r)
+
+            
+        
+    
+    
+    
+
+                
+                
+                             
+            
+
+                        
+                        
+                
+    
+    
 
 if __name__=="__main__":
-    main()
+    px,krn=main()
+    
         
         
     
