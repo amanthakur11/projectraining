@@ -3,22 +3,22 @@ import cv2
 import matplotlib.pyplot as plt
 import seaborn as sns
 s1=0
-def make_blocks(pixel,stride,kernel):
+def make_blocks(pixel,stride,kernel,img_size):
     blocks=[]
     index=[]
-    #blocks = np.array([pixel[i:i+kernel, j:j+kernel] for j in range(0,100,kernel) for i in range(0,100,kernel)])
-    for i in range(0,100,stride):
-        for j in range(0,100,stride):
+    #blocks = np.array([pixel[i:i+kernel, j:j+kernel] for j in range(0,img_size,kernel) for i in range(0,img_size,kernel)])
+    for i in range(0,img_size,stride):
+        for j in range(0,img_size,stride):
             
-            if j+kernel>100 and i+kernel>100:
-                k=i+kernel-100
-                l=j+kernel-100
+            if j+kernel>img_size and i+kernel>img_size:
+                k=i+kernel-img_size
+                l=j+kernel-img_size
                 ind1=[]
                 a=[]
-                for p in range(i,100):
+                for p in range(i,img_size):
                     b=[]
                     ind2=[]
-                    for q in range(j,100):
+                    for q in range(j,img_size):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -37,7 +37,7 @@ def make_blocks(pixel,stride,kernel):
                 for p in range(k):
                     b=[]
                     ind2=[]
-                    for q in range(j,100):
+                    for q in range(j,img_size):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -54,14 +54,14 @@ def make_blocks(pixel,stride,kernel):
                 blocks.append(a)
                 index.append(ind1)
                 
-            elif j+kernel>100:
-                k=j+kernel-100
+            elif j+kernel>img_size:
+                k=j+kernel-img_size
                 a=[]
                 ind1=[]
                 for p in range(i,i+kernel):
                     b=[]
                     ind2=[]
-                    for q in range(j,100):
+                    for q in range(j,img_size):
                         c=[]
                         b.append(pixel[p][q])
                         c.append(p)
@@ -78,11 +78,11 @@ def make_blocks(pixel,stride,kernel):
                 blocks.append(a)
                 index.append(ind1)
                 
-            elif i+kernel>100:
-                k=i+kernel-100
+            elif i+kernel>img_size:
+                k=i+kernel-img_size
                 a=[]
                 ind1=[]
-                for p in range(i,100):
+                for p in range(i,img_size):
                     b=[]
                     ind2=[]
                     for q in range(j,j+kernel):
@@ -279,13 +279,13 @@ def tsl_calculate(q1,q2,thresold):
             block2[i[1]].append(i[0])
     return count,count1,block1,block2
 
-def make_dataset(pixel1,q3,kern,thresold):
-    with open("training.file.csv","w") as f:
+def make_dataset(pixel1,q3,kern,thresold,file_name):
+    with open(file_name,"w") as f:
         for i in range(kern**2):
             f.write("x{},".format((i+1)))
         f.write("label\n")
         
-    with open("training.file.csv","a") as f:
+    with open(file_name,"a") as f:
         c=0
         for i in q3:
             p=pixel1[i[0]-1]
@@ -302,9 +302,9 @@ def make_dataset(pixel1,q3,kern,thresold):
                 f.write("NROI\n")
    #return c
 
-def main():
-    img=cv2.resize(cv2.imread("/home/amanthakur/Desktop/lena.jpeg",0),(100,100))
-    #np.reshape(img,[100,100])
+def main(img_size,thresold):
+    img=cv2.resize(cv2.imread("/home/amanthakur/Desktop/lena.jpeg",0),(img_size,img_size))
+    #np.reshape(img,[img_size,img_size])
     plt.imshow(img,cmap="gray")
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
@@ -316,12 +316,11 @@ def main():
     stride=[1,2,3,4,5]
     kernel=[3,4,5,7]
     optimal=[]
-    thresold=10
     for i in stride:
         for l in kernel:
             opt=[]
             print("\nfor stride = ",i," and kernel = ",l)
-            blocks,index=make_blocks(pixel,i,l)
+            blocks,index=make_blocks(pixel,i,l,img_size)
             print("total smooth level before dividing blocks: ")
             q3,pixel1,e2=diff_block_div_one(blocks)
             q4,pixel2=diff_block_div_two(blocks,pixel1,e2)
@@ -333,7 +332,7 @@ def main():
             tsl=0
             tsl1=0
             for j in total_sl.keys():
-                if j>=10:
+                if j>=thresold:
                     tsl+=total_sl[j]
                     tsl1=tsl1+j*total_sl[j]
             
@@ -361,7 +360,7 @@ def main():
     print("\noptimal tecnique is for stride: ",strd," and kernel: ",kern," with total smooth level>5 : ",m," total smooth level: ",m1)
     print("\nfor stride = ",strd," and kernel = ",kern)
     
-    blocks,index=make_blocks(pixel,strd,kern)
+    blocks,index=make_blocks(pixel,strd,kern,img_size)
     q3,pixel1,e2=diff_block_div_one(blocks)
     q4,pixel2=diff_block_div_two(blocks,pixel1,e2)
     total_sl,total_sl1,block1,block2=tsl_calculate(q3,q4,thresold)
@@ -385,10 +384,10 @@ def main():
     plt.imshow(img,cmap="gray")
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
-    make_dataset(pixel1,q3,kern,thresold)
-    return pixel1,kern
+    #make_dataset(pixel1,q3,kern,thresold,"sdcvg.csv")
+    return pixel1,q3,kern,strd
     
-    #hresold=[5,7,10,12]
+    #thresold=[5,7,10,12]
    #roi=[]
    #roi.append(0)
    #j=0
@@ -417,8 +416,9 @@ def main():
     
     
 
-if __name__=="__main__":
-    px,krn=main()
+#if __name__=="__main__":
+    #img_size=28
+    #pixel1,q3,kern,strd=main(img_size,5)
     
         
         
