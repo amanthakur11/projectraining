@@ -357,7 +357,7 @@ def main(img_size,thresold):
             
             
                 
-    print("\noptimal tecnique is for stride: ",strd," and kernel: ",kern," with total smooth level>5 : ",m," total smooth level: ",m1)
+    print("\noptimal tecnique is for stride: ",strd," and kernel: ",kern," with total smooth level>",thresold,":",m,"total smooth level: ",m1)
     print("\nfor stride = ",strd," and kernel = ",kern)
     
     blocks,index=make_blocks(pixel,strd,kern,img_size)
@@ -366,21 +366,34 @@ def main(img_size,thresold):
     total_sl,total_sl1,block1,block2=tsl_calculate(q3,q4,thresold)
 
     for j in q3:
-       x=[]
-       y=[]
-       if j[1]>=5:
+       #x=[]
+       #y=[]
+       if j[1]>=thresold:
             p=pixel1[j[0]-1]
             inx=index[j[0]-1]
+            blocks,index1=make_blocks(p,1,2,kern)
+            ind2=0
+            for i in blocks:
+                s=sum(list(x).count(0) for x in i)
+                if s>=2:
+                    inx1=index1[ind2]
+                    xx1,yy1=inx1[0][0]
+                    xx2,yy2=inx1[-1][-1]
+                    x1,y1=inx[xx1][yy1]
+                    x2,y2=inx[xx2][yy2]
+                    cv2.rectangle(img,(x1,y1),(x2,y2),(255,0,0),1)
+                ind2+=1
   
             #cv2.rectangle(img,(x1,y1),(x2,y2),(255,0,0),3)
-            
+            """  
             for k in range(len(p[0])):
                 for n in range(len(p[k])):
                     if p[k][n]==0:
                         x.append(inx[k][n][0])
                         y.append(inx[k][n][1])
             for j in range(len(x)-1):
-                cv2.line(img,(x[j],y[j]),(x[j+1],y[j+1]),(255,0,0),2)
+                cv2.line(img,(x[j],y[j]),(x[j+1],y[j+1]),(255,0,0),2)"""
+                
     plt.imshow(img,cmap="gray")
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     plt.show()
@@ -400,28 +413,9 @@ def main(img_size,thresold):
    #print("thresold: ",th," roi: ",r)
 
             
-        
-    
-    
-    
+"""
 
-                
-                
-                             
-            
-
-                        
-                        
-                
-    
-    
-
-#if __name__=="__main__":
-    #img_size=28
-    #pixel1,q3,kern,strd=main(img_size,5)
-    
-        
-        
-    
-    
+if __name__=="__main__":
+    img_size=50
+    pixel1,q3,kern,strd=main(img_size,10)"""
     
